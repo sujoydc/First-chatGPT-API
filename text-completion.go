@@ -45,8 +45,7 @@ func postToChatGPT(payload ChatGPTRequest) (string, error) {
 
 	// Set required headers
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer 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")
-	//req.Header.Set("Authorization", "Bearer sk-m9AVCA9ALYJRBicv2gsAT3BlbkFJkMzzQTv")
+	req.Header.Set("Authorization", "Bearer MY_TOKEN")
 
 	// Send the HTTP request
 	client := &http.Client{}
