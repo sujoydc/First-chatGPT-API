@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 )
 
 type ChatGPTRequest struct {
@@ -28,7 +29,70 @@ type ChatGPTResponse struct {
 	} `json:"choices"`
 }
 
-func postToChatGPT(payload ChatGPTRequest, url string) (string, error) {
+func main() {
+
+	// read the key=value pair file first
+	keyMapVals, err := readPropsFromFile(".sujix-prop")
+	if err != nil {
+		fmt.Println("Mandatory file .sujix-prop not found. Please create this file with the following:")
+		fmt.Println("API-KEY=[Your Key]")
+		os.Exit(9)
+	}
+
+	logPropsForDebug(keyMapVals)
+
+	fmt.Println("Welcome to my chatGPT prompt.")
+	fmt.Println("For Text Completion, enter 1")
+	fmt.Println("For Chat Completion, enter 2")
+	fmt.Println("Anytime to exit, please enter 0")
+
+	var option int16
+	fmt.Print("Please enter your option? - ")
+	fmt.Scanln(&option)
+
+	for option != 0 {
+
+		if option == 1 {
+
+			prompt := getPromptInput()
+			fmt.Printf("Your question is: %s\n", prompt)
+
+			model := "text-davinci-003" //"text-ada-001"
+			maxTokens := int32(7)
+			temperature := float32(1.0)
+
+			chatGPTRequest := ChatGPTRequest{
+				Prompt:      prompt,
+				Model:       model,
+				MaxTokens:   maxTokens,
+				Temperature: temperature,
+			}
+
+			// Replace with the actual ChatGPT API URL
+			url := "https://api.openai.com/v1/completions"
+
+			responseText, err := postToChatGPT(chatGPTRequest, url, keyMapVals)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			fmt.Printf("Response: %s\n", responseText)
+
+		} else if option == 2 {
+			fmt.Println("Work in progress! ")
+
+		} else {
+			fmt.Println("Invalid option! Bye bye!")
+			os.Exit(0)
+		}
+
+		fmt.Print("Please enter your option? - ")
+		fmt.Scanln(&option)
+	}
+
+}
+
+func postToChatGPT(payload ChatGPTRequest, url string, kv map[string]string) (string, error) {
 
 	// Create the request payload
 	//payload := &ChatGPTRequest{Prompt: prompt}
@@ -45,7 +109,7 @@ func postToChatGPT(payload ChatGPTRequest, url string) (string, error) {
 
 	// Set required headers
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer $MY_TOKEN")
+	req.Header.Set("Authorization", "Bearer "+kv["API-KEY"])
 
 	// Send the HTTP request
 	client := &http.Client{}
@@ -81,6 +145,36 @@ func postToChatGPT(payload ChatGPTRequest, url string) (string, error) {
 	return "", fmt.Errorf("no choices found in the ChatGPT API response")
 }
 
+func readPropsFromFile(filename string) (map[string]string, error) {
+
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	result := make(map[string]string)
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		parts := strings.SplitN(line, "=", 2) // Split on the first "="
+		if len(parts) != 2 {
+			fmt.Println("Ignoring line:", line)
+			continue
+		}
+		key := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
+		result[key] = value
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+
+}
+
 func getPromptInput() string {
 	reader := bufio.NewReader(os.Stdin)
 
@@ -95,55 +189,8 @@ func getPromptInput() string {
 	return input[:len(input)-1]
 }
 
-func main() {
-
-	fmt.Println("Welcome to my chatGPT prompt.")
-	fmt.Println("For Text Completion, enter 1")
-	fmt.Println("For Chat Completion, enter 2")
-	fmt.Println("Anytime to exit, please enter 0")
-
-	var option int16
-	fmt.Print("Please enter your option? - ")
-	fmt.Scanln(&option)
-
-	for option != 0 {
-
-		if option == 1 {
-
-			prompt := getPromptInput()
-			fmt.Printf("Your question is: %s\n", prompt)
-
-			model := "text-davinci-003" //"text-ada-001"
-			maxTokens := int32(7)
-			temperature := float32(1.0)
-
-			chatGPTRequest := ChatGPTRequest{
-				Prompt:      prompt,
-				Model:       model,
-				MaxTokens:   maxTokens,
-				Temperature: temperature,
-			}
-
-			// Replace with the actual ChatGPT API URL
-			url := "https://api.openai.com/v1/completions"
-
-			responseText, err := postToChatGPT(chatGPTRequest, url)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			fmt.Printf("Response: %s\n", responseText)
-
-		} else if option == 2 {
-			fmt.Println("Work in progress! ")
-
-		} else {
-			fmt.Println("Invalid option! Bye bye!")
-			os.Exit(0)
-		}
-
-		fmt.Print("Please enter your option? - ")
-		fmt.Scanln(&option)
+func logPropsForDebug(kv map[string]string) {
+	for key, value := range kv {
+		fmt.Printf("Key: %s, Value: %s\n", key, value)
 	}
-
 }
